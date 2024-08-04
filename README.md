@@ -47,12 +47,12 @@ curl.exe -s https://checkip.amazonaws.com
 curl -s https://checkip.amazonaws.com
 ```
 
-次にAWS CloudShellを起動し以下のコマンドを実行して環境を構築します。 
+次に東京リージョンでAWS CloudShellを起動し以下のコマンドを実行して環境を構築します。  
 `YOUR_GLOBAL_IP`変数にご自身のグローバルIPアドレスを設定します。  
 
 ```bash
 #
-# AWS CloudShellで以下のコマンドを実行します
+# 東京リージョンのAWS CloudShellで以下のコマンドを実行します
 # 
 
 # 本リポジトリをclone
@@ -116,11 +116,11 @@ sudo cat /home/ec2-user/.config/code-server/config.yaml | grep password:
 
 Web IDEの利用を終えた後はEC2インスタンスを停止し、CloudFormationスタックを削除して環境を削除します。  
 
-AWS CloudShellを起動し以下のコマンドを実行すると環境を削除できます。  
+東京リージョンでAWS CloudShellを起動し以下のコマンドを実行すると環境を削除できます。  
 
 ```bash
 #
-# AWS CloudShellで以下のコマンドを実行します
+# 東京リージョンのAWS CloudShellで以下のコマンドを実行します
 # 
 
 # CloudFormationスタックの削除
