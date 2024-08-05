@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: "stknohg/code-server-cfn : Cloudformation template for creating a simple code-server environment."
+Description: "stknohg/code-server-cfn : CloudFormation template for creating a simple code-server environment."
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
