@@ -92,15 +92,15 @@ sudo cat /home/ec2-user/.config/code-server/config.yaml | grep password:
 
 直接IPアドレスを指定しているので「接続がプライベートでない」旨のエラーがでますがそのまま続行します。  
 
-![get-password](./assets/how-to-connect-01.png)
+![how-to-connect-01](./assets/how-to-connect-01.png)
 
 すると`code-server`のログイン画面に遷移しますので、先ほど取得したパスワードを入力し「SUBMIT」ボタンをクリックします。  
 
-![get-password](./assets/how-to-connect-02.png)
+![how-to-connect-02](./assets/how-to-connect-02.png)
 
 初期設定を済ませて、後は自由にWeb IDEを利用してください。
 
-![get-password](./assets/how-to-connect-03.png)
+![how-to-connect-03](./assets/how-to-connect-03.png)
 
 直接IPアドレスを指定しているため以下のSSLエラーが出ますが、これは意図した挙動ですので無視してください。  
 
