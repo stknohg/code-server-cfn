@@ -112,6 +112,9 @@ sudo cat /home/ec2-user/.config/code-server/config.yaml | grep password:
 > SSLエラーを解消したい場合は別途適切なサーバー証明書を導入してください。  
 > もしくは code-server でなく Coder を使用してください。
 
+> [!NOTE]  
+> 短時間の利用であれば [Pinggyを使う構成](./Pinggy/) で代替することもできます。
+
 ### 3. 終了
 
 Web IDEの利用を終えた後はEC2インスタンスを停止し、CloudFormationスタックを削除して環境を削除します。  

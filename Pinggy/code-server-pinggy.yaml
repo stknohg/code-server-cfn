@@ -1,0 +1,254 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "stknohg/code-server-cfn : CloudFormation template for creating a simple code-server environment with Pinggy."
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Set basic information.
+        Parameters:
+          - SystemName
+          - EnvironmentName
+      - Label:
+          default: Set your network settings.
+        Parameters:
+          - AZ1
+          - AZ2
+      - Label:
+          default: Set your EC2 instance settings.
+        Parameters:
+          - InstanceType
+          - AMIID
+Parameters:
+  SystemName:
+    Description: "System name of each resources."
+    Type: String
+    Default: "coder"
+  EnvironmentName:
+    Description: "Environment name of each resources."
+    Type: String
+    Default: "temp"
+  AZ1:
+    Description: "First Availability Zone name."
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: "ap-northeast-1a"
+  AZ2:
+    Description: "Second Availability Zone name."
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: "ap-northeast-1c"
+  InstanceType:
+    Description: "code-serve EC2 instance type."
+    Type: String
+    Default: "t3.micro"
+  AMIID:
+    Description: "code-serve EC2 AMI ID"
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+    AllowedValues:
+      - /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemName}-${EnvironmentName}-vpc"
+  # Internet Gateway
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemName}-${EnvironmentName}-igw"
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: IGW
+  # Subnets
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Ref: AZ1
+      VpcId:
+        Ref: VPC
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemName}-${EnvironmentName}-public1-subnet"
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Ref: AZ2
+      VpcId:
+        Ref: VPC
+      CidrBlock: 10.0.2.0/24
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemName}-${EnvironmentName}-public2-subnet"
+  # Route Tables
+  PublicRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemName}-${EnvironmentName}-public-rtb"
+  PublicRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: IGW
+  PublicRTAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable1
+      SubnetId:
+        Ref: PublicSubnet1
+  PublicRTAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable1
+      SubnetId:
+        Ref: PublicSubnet2
+  # Security group
+  SecurityGroupHTTP:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName:
+        Fn::Sub: "${SystemName}-${EnvironmentName}-http-sg"
+      GroupDescription: "Security group for code-server HTTP/HTTPS"
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemName}-${EnvironmentName}-http-sg"
+  # IAM Role
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Join:
+          - "-"
+          - - Fn::Sub: "${SystemName}-${EnvironmentName}-instance-role"
+            - Fn::Select:
+                - 4
+                - Fn::Split:
+                    - "-"
+                    - Fn::Select:
+                        - 2
+                        - Fn::Split:
+                            - /
+                            - Ref: AWS::StackId
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        # AmazonSSMManagedInstanceCore is required
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      #
+      # Customize other policies as needed.
+      # 
+  # Instance Profile
+  EC2InstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      InstanceProfileName:
+        Fn::Join:
+          - "-"
+          - - Fn::Sub: "${SystemName}-${EnvironmentName}-instance-role"
+            - Fn::Select:
+                - 4
+                - Fn::Split:
+                    - "-"
+                    - Fn::Select:
+                        - 2
+                        - Fn::Split:
+                            - /
+                            - Ref: AWS::StackId
+      Path: "/"
+      Roles:
+        - Ref: EC2Role
+
+  # EC2 instance
+  CodeServerEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        Ref: AMIID
+      InstanceType:
+        Ref: InstanceType
+      DisableApiTermination: false
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            Encrypted: true
+            VolumeSize: 8
+            VolumeType: gp3
+            DeleteOnTermination: true
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          SubnetId:
+            Ref: PublicSubnet1
+          GroupSet:
+            - Ref: SecurityGroupHTTP
+      IamInstanceProfile:
+        Ref: EC2InstanceProfile
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemName}-${EnvironmentName}-code-server"
+      UserData:
+        Fn::Base64: |
+          #!/usr/bin/bash
+
+          # Add aws_completer
+          echo 'complete -C /usr/bin/aws_completer aws' >> /home/ec2-user/.bashrc
+
+          # Install expect, git
+          dnf install -y expect git
+
+          # install code-server service system-wide
+          export CODER_VERSION=$(curl -s https://api.github.com/repos/coder/code-server/releases/latest | jq .tag_name --raw-output | sed 's/v//')
+          curl -fOL https://github.com/coder/code-server/releases/download/v$CODER_VERSION/code-server-$CODER_VERSION-amd64.rpm
+          rpm -i code-server-$CODER_VERSION-amd64.rpm
+          rm -f code-server-$CODER_VERSION-amd64.rpm
+
+          # Setup code-server@ec2-user configurations
+          mkdir -p /home/ec2-user/.config/code-server/
+          touch /home/ec2-user/.config/code-server/config.yaml
+          echo "bind-addr: 127.0.0.1:8080" > /home/ec2-user/.config/code-server/config.yaml
+          echo "auth: password" >> /home/ec2-user/.config/code-server/config.yaml
+          echo "password: $(mkpasswd-expect -l 32 -s 0 -d 8 -C 8)" >> /home/ec2-user/.config/code-server/config.yaml
+          echo "cert: false" >> /home/ec2-user/.config/code-server/config.yaml
+          chown -R ec2-user:ec2-user /home/ec2-user/.config
+
+          # start and enable code-server 
+          systemctl enable --now code-server@ec2-user
