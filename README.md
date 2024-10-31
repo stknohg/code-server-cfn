@@ -60,7 +60,7 @@ git clone https://github.com/stknohg/code-server-cfn.git --depth 1
 cd code-server-cfn/
 
 # 自分のグローバルIPアドレスを設定
-export YOUR_GLOBAL_IP="XX.XX.XX.XX"
+YOUR_GLOBAL_IP="XX.XX.XX.XX"
 
 # CloudFormationスタックを作成
 aws cloudformation create-stack --stack-name temp-code-server \
