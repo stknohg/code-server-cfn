@@ -1,9 +1,7 @@
-# code-server-cfn
-
-> [!NOTE]  
-> HTTPSアクセスが必要な場合は [CloudFrontを使う構成](./CloudFront/) や [Pinggyを使う構成](./Pinggy/) をご覧ください。
+# code-server-cfn with CloudFront
 
 シンプルな`code-server`環境を作るためのCloudFormationテンプレートです。  
+本テンプレートではCloudFrontを使いHTTPSアクセスを実現します。  
 
 * [coder/code-server](https://github.com/coder/code-server)
 
@@ -19,39 +17,21 @@
 
 ## 作成される環境
 
-本テンプレートは新規にVPCと`code-server`がインストールされた1台のEC2インスタンスを作成します。  
+本テンプレートは新規にVPCと`code-server`がインストールされた1台のEC2インスタンスを作成し、さらにEC2へ接続するためのCloudFrontディストリビューションを作成します。  
 
-![Environment](./assets/environment.png)
+![Environment](./assets/environment-with-cf.png)
 
 以下の環境でテスト済みです。  
 
 * AWS 東京リージョン (ap-northeast-1)
-* Amazon Linux 2023 : 2023.5.20240730.0
-* code-server : v4.91.1
+* Amazon Linux 2023 : 2023.6.20250303.0
+* code-server : v4.98.0
 
 ## 利用方法
 
-VPC、EC2、IAMロールを作成可能な権限を持つユーザーで作業してください。  
+VPC、EC2、CloudFront、IAMロールを作成可能な権限を持つユーザーで作業してください。  
 
-### 1. 環境構築
-
-はじめにローカル環境で以下のコマンドを実行して、自分のグローバルIPアドレスを取得してください。  
-取得したグローバルIPアドレスは次の手順で使います。  
-
-```bash
-#
-# ローカル環境で次のコマンドを実行します
-#
-
-# Widnows環境の場合
-curl.exe -s https://checkip.amazonaws.com
-
-# macOSおよびLinux環境の場合
-curl -s https://checkip.amazonaws.com
-```
-
-次に東京リージョンでAWS CloudShellを起動し以下のコマンドを実行して環境を構築します。  
-`YOUR_GLOBAL_IP`変数にご自身のグローバルIPアドレスを設定します。  
+東京リージョンでAWS CloudShellを起動し以下のコマンドを実行して環境を構築します。  
 
 ```bash
 #
@@ -62,19 +42,15 @@ curl -s https://checkip.amazonaws.com
 git clone https://github.com/stknohg/code-server-cfn.git --depth 1
 cd code-server-cfn/
 
-# 自分のグローバルIPアドレスを設定
-YOUR_GLOBAL_IP="XX.XX.XX.XX"
-
 # CloudFormationスタックを作成
-aws cloudformation create-stack --stack-name temp-code-server \
-    --template-body file://./code-server.yaml \
-    --parameters "ParameterKey=UserCIDR,ParameterValue=${YOUR_GLOBAL_IP}/32" \
+aws cloudformation create-stack --stack-name temp-code-server-cf \
+    --template-body file://./CloudFront/code-server-cf.yaml \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 
 CloudFormationスタックがエラー無く完了すればセットアップは完了です。  
 
-### 2. code-serverへのアクセス
+### 2. code-serverパスワードの取得
 
 `code-server`へアクセスする際にパスワードが必要になります。  
 
@@ -91,11 +67,25 @@ sudo cat /home/ec2-user/.config/code-server/config.yaml | grep password:
 
 ![get-password](./assets/how-to-get-password-01.png)
 
-続けてWEBブラウザを起動し`https://<Your EC2 instance Public IP>/`にアクセスしてください。  
+このパスワードは後で使用します。  
 
-直接IPアドレスを指定しているので「接続がプライベートでない」旨のエラーがでますがそのまま続行します。  
+### 3. code-serverへのアクセス
+
+続けてWEBブラウザを起動し`https://<ディストリビューションのドメイン名>/`にアクセスしてください。  
+
+CloudFrontディストリビューションのドメイン名はCloudFormationスタックの出力値を確認してください。  
+(`ランダムID.cloudfront.net`の値になります)  
 
 ![how-to-connect-01](./assets/how-to-connect-01.png)
+
+もしくは次のコマンドからも取得できます。
+
+```bash
+# CloudFormationスタックからディストリビューションのドメイン名を取得
+aws cloudformation describe-stacks --stack-name temp-code-server-cf \
+    --query 'Stacks[0].Outputs[?OutputKey==`CodeServerCFDist`]|[0].OutputValue' \
+    --output text
+```
 
 すると`code-server`のログイン画面に遷移しますので、先ほど取得したパスワードを入力し「SUBMIT」ボタンをクリックします。  
 
@@ -105,20 +95,7 @@ sudo cat /home/ec2-user/.config/code-server/config.yaml | grep password:
 
 ![how-to-connect-03](./assets/how-to-connect-03.png)
 
-直接IPアドレスを指定しているため以下のSSLエラーが出ますが、これは意図した挙動ですので無視してください。  
-
-> An SSL certificate error occurred when fetching the script.
-
-<img src="./assets/ssl-warinig-01.png" width="50%">
-
-> [!WARNING]  
-> SSLエラーを解消したい場合は別途適切なサーバー証明書を導入してください。  
-> もしくは code-server でなく Coder を使用してください。
-
-> [!NOTE]  
-> 短時間の利用であれば [CloudFrontを使う構成](./CloudFront/) や [Pinggyを使う構成](./Pinggy/)  で代替することもできます。
-
-### 3. 終了
+### 4. 終了
 
 Web IDEの利用を終えた後はEC2インスタンスを停止し、CloudFormationスタックを削除して環境を削除します。  
 
@@ -130,11 +107,5 @@ Web IDEの利用を終えた後はEC2インスタンスを停止し、CloudForma
 # 
 
 # CloudFormationスタックの削除
-aws cloudformation delete-stack --stack-name temp-code-server
+aws cloudformation delete-stack --stack-name temp-code-server-cf
 ```
-
-## ライセンス
-
-本テンプレートは[MIT License](./LICENSE)で公開しています。  
-
-必要に応じて改変してご利用ください。  
