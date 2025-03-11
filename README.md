@@ -26,8 +26,8 @@
 以下の環境でテスト済みです。  
 
 * AWS 東京リージョン (ap-northeast-1)
-* Amazon Linux 2023 : 2023.5.20240730.0
-* code-server : v4.91.1
+* Amazon Linux 2023 : 2023.6.20250303.0
+* code-server : v4.98.0
 
 ## 利用方法
 
