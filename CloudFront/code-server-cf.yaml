@@ -330,7 +330,7 @@ Resources:
               HTTPPort: 8080
         DefaultCacheBehavior:
           TargetOriginId: "EC2"
-          Compress: true
+          Compress: false
           ViewerProtocolPolicy: "redirect-to-https"
           AllowedMethods:
             - "GET"
