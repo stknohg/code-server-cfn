@@ -74,6 +74,21 @@ aws cloudformation create-stack --stack-name temp-code-server \
 
 CloudFormationスタックがエラー無く完了すればセットアップは完了です。  
 
+#### 補足 : インスタンスタイプを変える場合
+
+本テンプレートではデフォルトで`t3.micro`のEC2インスタンスを作成します。  
+このインスタンスタイプは無償枠の範囲で安価に利用できますが、長時間使用するとCPUクレジットが枯渇し大幅な性能劣化が起きてしまいます。  
+
+安定した性能で利用したい場合は次のコマンドを使ってインスタンスタイプを変えて環境構築してください。
+
+```bash
+# インスタンスタイプを c7a.medium に変えてCloudFormationスタックを作成
+aws cloudformation create-stack --stack-name temp-code-server \
+    --template-body file://./code-server.yaml \
+    --parameters "ParameterKey=UserCIDR,ParameterValue=${YOUR_GLOBAL_IP}/32" "ParameterKey=InstanceType,ParameterValue=c7a.medium" \
+    --capabilities CAPABILITY_NAMED_IAM
+```
+
 ### 2. code-serverへのアクセス
 
 `code-server`へアクセスする際にパスワードが必要になります。  
