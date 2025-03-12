@@ -18,6 +18,10 @@ Metadata:
         Parameters:
           - InstanceType
           - AMIID
+      - Label:
+          default: Set your CloudFront distribution settings.
+        Parameters:
+          - UseCacheControl
 Parameters:
   SystemName:
     Description: "System name of each resources."
@@ -45,6 +49,16 @@ Parameters:
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
     AllowedValues:
       - /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+  UseCacheControl:
+    Description: "Whether to enable CloudFront cache settings"
+    Type: String
+    Default: "Yes"
+    AllowedValues:
+      - "Yes"
+      - "No"
+Conditions:
+  UseCacheControlCond:
+    Fn::Equals: [Ref: UseCacheControl, "Yes"]
 Mappings:
   # ref : https://aws.amazon.com/jp/blogs/news/limit-access-to-your-origins-using-the-aws-managed-prefix-list-for-amazon-cloudfront/
   AWSRegions2PrefixListID:
@@ -320,6 +334,7 @@ Resources:
         Enabled: true
         # Note : This template is intended for use in Japan, so it uses a low-cost class.
         PriceClass: "PriceClass_200"
+        HttpVersion: "http2"
         IPV6Enabled: false
         Origins:
           - Id: "EC2"
@@ -330,7 +345,11 @@ Resources:
               HTTPPort: 8080
         DefaultCacheBehavior:
           TargetOriginId: "EC2"
-          Compress: false
+          Compress:
+            Fn::If:
+              - UseCacheControlCond
+              - true
+              - false
           ViewerProtocolPolicy: "redirect-to-https"
           AllowedMethods:
             - "GET"
@@ -340,7 +359,11 @@ Resources:
             - "POST"
             - "PATCH"
             - "DELETE"
-          CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+          CachePolicyId: 
+            Fn::If:
+              - UseCacheControlCond
+              - "4cc15a8a-d715-48a4-82b8-cc0b614638fe" # UseOriginCacheControlHeaders-QueryStrings
+              - "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
           OriginRequestPolicyId: "216adef6-5c7f-47e4-b989-5492eafa07d3" # AllViewer
 
 Outputs:
